@@ -54,13 +54,18 @@ function App() {
     });
 
     socketService.socket.on('transfer:web_request', (data: { filename: string, url: string }) => {
-        const transferId = Math.random().toString(36).substr(2, 9);
-        setTransfers(prev => [{
-            id: transferId,
-            filename: data.filename,
-            url: data.url,
-            timestamp: Date.now()
-        }, ...prev]);
+        setTransfers(prev => {
+            // Prevent duplicates if the same URL is received twice
+            if (prev.some(t => t.url === data.url)) return prev;
+            
+            const transferId = Math.random().toString(36).substr(2, 9);
+            return [{
+                id: transferId,
+                filename: data.filename,
+                url: data.url,
+                timestamp: Date.now()
+            }, ...prev];
+        });
     });
 
     return () => {

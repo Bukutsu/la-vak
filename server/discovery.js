@@ -91,13 +91,16 @@ class PeerDiscovery extends EventEmitter {
         try {
             const data = JSON.parse(msg.toString());
 
+            // 1. STRICTLY IGNORE SELF
+            // We never want to see ourselves in the list of "Available Devices"
+            if (data.id === this.peerId) return;
+
             if (data.type === 'HELLO') {
                 const peerId = data.id;
+                
+                // Only emit discovered if we haven't seen this ID recently
                 const isNew = !this.peers.has(peerId);
 
-                // Add a flag to indicate if it's the local device
-                const isSelf = data.id === this.peerId;
-                
                 // Use the reported address from the packet if available
                 const remoteAddr = data.remoteAddress || rinfo.address;
 
@@ -105,15 +108,16 @@ class PeerDiscovery extends EventEmitter {
                     info: data,
                     remoteAddress: remoteAddr,
                     lastSeen: Date.now(),
-                    isSelf
+                    isSelf: false // Strictly false now
                 });
 
                 if (isNew) {
-                    this.emit('peer:discovered', { ...data, remoteAddress: remoteAddr, isSelf });
+                    console.log(`[Discovery] New Peer Discovered: ${data.hostname} at ${remoteAddr}`);
+                    this.emit('peer:discovered', { ...data, remoteAddress: remoteAddr, isSelf: false });
                 }
             }
         } catch (e) {
-            console.warn('[Discovery] Received invalid JSON:', msg.toString());
+            console.warn('[Discovery] Received invalid JSON from', rinfo.address);
         }
     }
 

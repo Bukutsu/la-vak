@@ -162,40 +162,19 @@ app.post('/api/send', upload.single('file'), async (req, res) => {
     }
 });
 
-function getFormattedPeers(isLocalhostRequest = false) {
-    let primaryNetworkIp = '';
-    const os = require('os');
-    const interfaces = os.networkInterfaces();
-    for (const name of Object.keys(interfaces)) {
-        for (const iface of interfaces[name]) {
-            if (iface.family === 'IPv4' && !iface.internal && iface.address !== '127.0.0.1') {
-                primaryNetworkIp = iface.address;
-                break;
-            }
-        }
-        if (primaryNetworkIp) break;
-    }
-
-    return Array.from(discovery.peers.values()).map(p => {
-        let displayAddress = p.remoteAddress;
-        if (p.isSelf && displayAddress === '127.0.0.1' && primaryNetworkIp) {
-            displayAddress = primaryNetworkIp;
-        }
-        return {
-            id: p.info.id,
-            hostname: p.info.hostname + (p.isSelf ? ' (You)' : ''),
-            remoteAddress: displayAddress,
-            isSelf: p.isSelf
-        };
-    });
+function getFormattedPeers() {
+    return Array.from(discovery.peers.values()).map(p => ({
+        id: p.info.id,
+        hostname: p.info.hostname,
+        remoteAddress: p.remoteAddress,
+        isSelf: false
+    }));
 }
 
 // WebSocket Handling
 io.on('connection', (socket) => {
     const remoteAddress = socket.handshake.address.replace('::ffff:', '');
     console.log(`[WS] Client connected from ${remoteAddress}`);
-
-    const isLocalClient = remoteAddress === '127.0.0.1' || remoteAddress === '::1';
 
     socket.on('peer:register', (data) => {
         if (data.id && data.hostname) {
@@ -206,7 +185,8 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.emit('peers:update', getFormattedPeers(isLocalClient));
+    // Send current peers immediately
+    socket.emit('peers:update', getFormattedPeers());
 
     socket.on('disconnect', () => {
         if (socket.peerId) {
@@ -227,12 +207,12 @@ async function start() {
 
     discovery.on('peer:discovered', (peer) => {
         console.log(`[Discovery] New Peer: ${peer.hostname} (${peer.id})`);
-        io.emit('peers:update', getFormattedPeers(false)); 
+        io.emit('peers:update', getFormattedPeers()); 
     });
 
     discovery.on('peer:left', (peer) => {
         console.log(`[Discovery] Peer Left: ${peer.id}`);
-        io.emit('peers:update', getFormattedPeers(false));
+        io.emit('peers:update', getFormattedPeers());
     });
 
     discovery.start();
