@@ -10,20 +10,18 @@ function App() {
   const [status, setStatus] = useState<ServerStatus | null>(null);
   const [peers, setPeers] = useState<Peer[]>([]);
   const [connected, setConnected] = useState(false);
-  const [incomingFile, setIncomingFile] = useState<{ filename: string, url: string } | null>(null);
+  const [transfers, setTransfers] = useState<{ id: string, filename: string, url: string, timestamp: number }[]>([]);
 
   useEffect(() => {
-    // Initial fetch
+    // ... same fetch ...
     api.getStatus().then(setStatus).catch(console.error);
     api.getPeers().then(setPeers).catch(console.error);
 
-    // Socket setup
     socketService.connect();
 
     socketService.socket.on('connect', () => {
       setConnected(true);
       
-      // Persist the webId so refreshing doesn't create duplicate peers
       let webId = localStorage.getItem('lavak_web_id');
       if (!webId) {
         webId = 'web-' + Math.random().toString(36).substr(2, 9);
@@ -44,20 +42,25 @@ function App() {
     });
 
     socketService.socket.on('peers:update', (updatedPeers: Peer[]) => {
-      console.log('Peers updated:', updatedPeers);
       setPeers(updatedPeers);
     });
 
     socketService.socket.on('transfer:incoming', (data: { filename: string, size: number }) => {
-      alert(`Incoming file: ${data.filename} (${(data.size / 1024).toFixed(2)} KB)`);
+      console.log('Incoming TCP transfer:', data.filename);
     });
 
     socketService.socket.on('transfer:success', () => {
-      alert('File received successfully!');
+      alert('File received and saved to downloads folder!');
     });
 
     socketService.socket.on('transfer:web_request', (data: { filename: string, url: string }) => {
-        setIncomingFile(data);
+        const transferId = Math.random().toString(36).substr(2, 9);
+        setTransfers(prev => [{
+            id: transferId,
+            filename: data.filename,
+            url: data.url,
+            timestamp: Date.now()
+        }, ...prev]);
     });
 
     return () => {
@@ -65,68 +68,78 @@ function App() {
     };
   }, []);
 
-  const handleDownload = () => {
-    if (!incomingFile) return;
+  const handleDownload = (transferId: string, url: string, filename: string) => {
     const link = document.createElement('a');
-    link.href = incomingFile.url;
-    link.setAttribute('download', incomingFile.filename);
+    link.href = url;
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     link.remove();
-    setIncomingFile(null);
+    
+    // Remove from list after download
+    setTransfers(prev => prev.filter(t => t.id !== transferId));
   };
 
   return (
     <div className="container">
-      {incomingFile && (
+      {transfers.length > 0 && (
         <div style={{
           position: 'fixed',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: '#38bdf8',
-          color: 'white',
-          padding: '1rem 2rem',
-          borderRadius: '12px',
-          boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+          bottom: '20px',
+          right: '20px',
           zIndex: 1000,
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          gap: '0.5rem',
-          minWidth: '300px'
+          gap: '10px',
+          maxWidth: '350px'
         }}>
-          <div style={{ fontWeight: 'bold' }}>File Received!</div>
-          <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>{incomingFile.filename}</div>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-            <button 
-              onClick={handleDownload}
-              style={{
-                background: 'white',
-                color: '#0369a1',
-                border: 'none',
-                padding: '8px 20px',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                cursor: 'pointer'
-              }}
-            >
-              Download Now
-            </button>
-            <button 
-              onClick={() => setIncomingFile(null)}
-              style={{
-                background: 'transparent',
-                color: 'white',
-                border: '1px solid white',
-                padding: '8px 20px',
-                borderRadius: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              Dismiss
-            </button>
-          </div>
+          {transfers.map(t => (
+            <div key={t.id} className="glass-panel" style={{
+              background: '#38bdf8',
+              color: 'white',
+              padding: '1rem',
+              borderRadius: '12px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+              animation: 'slideIn 0.3s ease'
+            }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Incoming File</div>
+              <div style={{ fontSize: '0.85rem', opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {t.filename}
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                <button 
+                  onClick={() => handleDownload(t.id, t.url, t.filename)}
+                  style={{
+                    background: 'white',
+                    color: '#0369a1',
+                    border: 'none',
+                    padding: '6px 15px',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    flex: 1
+                  }}
+                >
+                  Save File
+                </button>
+                <button 
+                  onClick={() => setTransfers(prev => prev.filter(item => item.id !== t.id))}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
       <header style={{ marginBottom: '3rem' }}>
