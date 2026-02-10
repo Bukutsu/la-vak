@@ -55,9 +55,23 @@ const upload = multer({ storage: storage });
 
 // API Routes
 app.get('/api/status', (req, res) => {
+    const interfaces = require('os').networkInterfaces();
+    let serverIp = 'localhost';
+
+    // Find first non-internal IPv4 address
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                serverIp = iface.address;
+                break;
+            }
+        }
+    }
+
     res.json({
         status: 'online',
-        publicKey: security.getPublicKey() ? 'Loaded' : 'Initializing...'
+        publicKey: security.getPublicKey() ? 'Loaded' : 'Initializing...',
+        serverIp: serverIp
     });
 });
 
@@ -68,13 +82,13 @@ app.get('/api/peers', (req, res) => {
 // Secure Download Endpoint for Web Peers
 app.get('/api/download/:token', (req, res) => {
     const download = activeDownloads.get(req.params.token);
-    
+
     if (!download) {
         return res.status(404).send('Download link expired or invalid.');
     }
 
     console.log(`[HTTP] Serving professional download for: ${download.filename}`);
-    
+
     // Use res.download which sets proper headers for all browsers
     res.download(download.filePath, download.filename, (err) => {
         if (err) {
@@ -103,7 +117,7 @@ app.post('/api/send', upload.single('file'), async (req, res) => {
     if (targetPeer) {
         console.log(`[API] Target is Web Peer. Relaying via WebSocket...`);
         const targetSocket = webSockets.get(targetPeer.info.id);
-        
+
         if (targetSocket) {
             // Generate a secure one-time token
             const token = Math.random().toString(36).substr(2, 12);
@@ -130,7 +144,7 @@ app.post('/api/send', upload.single('file'), async (req, res) => {
             }
 
             const downloadUrl = `http://${host}/api/download/${token}`;
-            
+
             targetSocket.emit('transfer:web_request', {
                 filename,
                 url: downloadUrl
@@ -207,7 +221,7 @@ async function start() {
 
     discovery.on('peer:discovered', (peer) => {
         console.log(`[Discovery] New Peer: ${peer.hostname} (${peer.id})`);
-        io.emit('peers:update', getFormattedPeers()); 
+        io.emit('peers:update', getFormattedPeers());
     });
 
     discovery.on('peer:left', (peer) => {

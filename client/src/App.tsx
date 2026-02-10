@@ -49,7 +49,11 @@ function App() {
     });
 
     socketService.socket.on('peers:update', (updatedPeers: Peer[]) => {
-      setPeers(updatedPeers);
+      const selfId = localStorage.getItem('lavak_web_id');
+      setPeers(updatedPeers.map(p => ({
+        ...p,
+        isSelf: p.id === selfId
+      })));
     });
 
     socketService.socket.on('transfer:incoming', (data: { filename: string, size: number }) => {
@@ -193,7 +197,36 @@ function App() {
           </div>
         </div>
       )}
-      <header style={{ marginBottom: '3rem' }}>
+
+      {peers.find(p => p.isSelf) && (
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          padding: '0.75rem 1.5rem',
+          background: 'white',
+          borderRadius: '16px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '0.25rem',
+          zIndex: 10
+        }}>
+          <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontWeight: 600 }}>
+            Your Device
+          </div>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
+            {peers.find(p => p.isSelf)?.hostname}
+          </div>
+          <div style={{ fontSize: '0.9rem', fontFamily: 'monospace', color: '#0ea5e9', background: '#f0f9ff', padding: '2px 8px', borderRadius: '6px' }}>
+            {status?.serverIp || peers.find(p => p.isSelf)?.remoteAddress}
+          </div>
+        </div>
+      )}
+
+      <header style={{ marginTop: '8rem', marginBottom: '3rem' }}>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
           <img src="/lavak1.png" alt="La-Vak Logo" style={{ width: '512px', height: '280px', objectFit: 'contain' }} />
         </div>
@@ -213,17 +246,19 @@ function App() {
               Security initialized: {status.publicKey}
             </div>
           )}
+
+
         </div>
       </header>
 
       <main>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2>Available Devices ({peers.length})</h2>
+          <h2>Available Devices ({peers.filter(p => !p.isSelf).length})</h2>
         </div>
 
-        <PeerList peers={peers} />
+        <PeerList peers={peers.filter(p => !p.isSelf)} />
       </main>
-    </div>
+    </div >
   );
 }
 
