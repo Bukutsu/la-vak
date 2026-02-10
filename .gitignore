@@ -1,24 +1,37 @@
 # Dependencies
 node_modules/
+**/node_modules/
+
+# Production
 dist/
+**/dist/
 dist-ssr/
-*.local
+
+# Project Specific
+downloads/
+server/uploads/
+server/shared/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
 
 # IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
-.DS_Store
-Thumbs.db
+*.suo
 
 # Environment
 .env
 .env.local
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+.env.*.local
