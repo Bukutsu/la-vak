@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { WS_URL } from '../config';
 
 export interface Peer {
     id: string;
@@ -42,7 +43,6 @@ interface WSMessage {
     data: unknown;
 }
 
-const WS_URL = `ws://${window.location.hostname}:3001`;
 const RECONNECT_DELAY = 2000;
 
 export function useWebSocket() {
@@ -52,7 +52,7 @@ export function useWebSocket() {
     const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
     const [connected, setConnected] = useState(false);
     const wsRef = useRef<WebSocket | null>(null);
-    const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+    const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
     const connect = useCallback(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;

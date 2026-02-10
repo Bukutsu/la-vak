@@ -1,11 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
 import type { Peer } from '../hooks/useWebSocket';
+import { API_BASE } from '../config';
 
 interface SendPanelProps {
     selectedPeer: Peer | null;
 }
-
-const API_BASE = `http://${window.location.hostname}:3001`;
 
 export default function SendPanel({ selectedPeer }: SendPanelProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);

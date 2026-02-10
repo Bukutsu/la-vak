@@ -295,6 +295,52 @@ You don't need to install anything on your phone. Just use the browser:
 
 ---
 
+### 🖥 Simulating Two Devices on One Machine (For Testing)
+
+Don't have a second machine? You can simulate two separate La-Vak peers on the **same computer** using different ports.
+
+#### Terminal Setup (3 terminals needed)
+
+**Terminal 1 — Server A (Device 1):**
+```bash
+cd server
+node index.js
+```
+This starts the first engine on the default port `3001`.
+
+**Terminal 2 — Server B (Device 2):**
+```bash
+cd server
+PORT=3002 node index.js
+```
+This starts a second engine on port `3002`. Both engines share the same UDP multicast group, so they will **discover each other automatically** within ~3 seconds.
+
+**Terminal 3 — Client (Dashboard):**
+```bash
+cd client
+npm run dev
+```
+
+#### Open Two Browser Tabs
+
+| Tab | URL | Connects To |
+| :--- | :--- | :--- |
+| Device A dashboard | `http://localhost:5173` | Server A (port 3001) |
+| Device B dashboard | `http://localhost:5173?port=3002` | Server B (port 3002) |
+
+The `?port=` query parameter tells the dashboard which backend engine to connect to.
+
+#### What You Should See
+
+1. **Both tabs** show "Engine Connected" (green dot).
+2. **Both Neighborhood panels** show the other instance as a discovered peer.
+3. You can now **send files** from Tab A → Tab B (or vice versa) exactly like you would between two real machines.
+4. Received files appear in `~/Downloads/la-vak/` as usual.
+
+> **How it works:** Each `node index.js` process generates a unique device ID using `os.hostname() + process.pid`. Since each process has a different PID, the UDP multicast discovery treats them as separate devices. The `?port=` parameter in the browser URL tells the React dashboard which server to connect to via WebSocket and REST API.
+
+---
+
 ## 🔌 API Reference (For Developers)
 
 ### REST API Endpoints
@@ -405,3 +451,29 @@ Same as Test 6, but respond with `"accepted": false`.
 #### Test 8: Tamper Detection
 Modify the transport to corrupt a byte mid-transfer.
 **Expected:** AES-256-GCM decryption fails with "Unsupported state or unable to authenticate data" error, and the transfer status becomes `error`.
+
+#### Test 9: Multi-Instance Simulation (Single Machine)
+Simulate two devices on one computer:
+```bash
+# Terminal 1 — Server A
+cd server && node index.js
+
+# Terminal 2 — Server B
+cd server && PORT=3002 node index.js
+
+# Terminal 3 — Client
+cd client && npm run dev
+```
+Open two browser tabs:
+- Tab A: `http://localhost:5173` (connects to server on port 3001)
+- Tab B: `http://localhost:5173?port=3002` (connects to server on port 3002)
+
+**Expected:**
+- Both tabs show "Engine Connected" (green dot).
+- Both Neighborhood panels discover the other instance within ~3 seconds.
+- Server terminals log `[Discovery] + Peer joined: <hostname>`.
+- You can send a file from Tab A → Tab B:
+  1. In Tab A, click the peer card, drop a file, click Send.
+  2. In Tab B, accept the incoming file popup.
+  3. Both transfer panels show progress → "Completed ✓".
+  4. File appears in `~/Downloads/la-vak/`.

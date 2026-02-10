@@ -1,12 +1,13 @@
 import { useState, useCallback } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
 import type { Peer } from './hooks/useWebSocket';
+import { API_BASE } from './config';
 import PeerList from './components/PeerList';
 import SendPanel from './components/SendPanel';
 import TransferList from './components/TransferList';
 import IncomingModal from './components/IncomingModal';
 
-const API_BASE = `http://${window.location.hostname}:3001`;
+
 
 function App() {
   const { peers, transfers, incoming, dismissIncoming, deviceInfo, connected } =
