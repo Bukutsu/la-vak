@@ -99,13 +99,205 @@ Open `http://localhost:5173` in your browser.
 
 ---
 
-## 📖 Usage Guide
+## 📖 Step-by-Step Usage Guide
 
-### Server-Side (Backend Engine)
+### Step 1: Start the Backend Engine
 
-The backend engine handles all low-level networking, security, and file streaming. It exposes a REST API + WebSocket interface for the frontend.
+Open a **terminal** on the machine you want to use for file sharing.
 
-#### REST API Endpoints
+```bash
+cd server
+npm install      # only needed the first time
+node index.js
+```
+
+You should see this output confirming everything is running:
+
+```
+[Security] ✓ Key pair ready
+[Transport] ✓ TLS server on port 59532
+[Discovery] Listening on 239.255.42.99:41234
+
+╔══════════════════════════════════════════╗
+║          🏘  La-Vak (ละแวก)               ║
+║   Secure P2P File Sync for the LAN       ║
+╠══════════════════════════════════════════╣
+║  HTTP API:   http://localhost:3001       ║
+║  Transport:  TLS on port 59532           ║
+║  Discovery:  UDP 239.255.42.99:41234      ║
+║  Device:     your-hostname               ║
+║  Local IP:   192.168.x.x                ║
+╚══════════════════════════════════════════╝
+```
+
+> **Note:** The TLS port number is random each time. The Discovery and HTTP ports are fixed.
+
+**Keep this terminal open.** The engine must keep running while you use the app.
+
+---
+
+### Step 2: Start the Web Dashboard
+
+Open a **second terminal** on the same machine:
+
+```bash
+cd client
+npm install      # only needed the first time
+npm run dev
+```
+
+You should see:
+
+```
+VITE ready in XXX ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+```
+
+---
+
+### Step 3: Open the Dashboard in Your Browser
+
+Open your web browser and go to:
+
+```
+http://localhost:5173
+```
+
+You will see the La-Vak dashboard with these sections:
+
+| Section | What You'll See |
+| :--- | :--- |
+| **Header (top bar)** | "🏘 La-Vak ละแวก" on the left. On the right, a green "● Engine Connected" badge and your device name + IP address. |
+| **Neighborhood (left panel)** | A "📡 Scanning neighborhood..." animation with 3 bouncing dots. This means the engine is actively looking for other devices on your LAN. |
+| **Send File (left panel, below)** | A dashed box saying "Drop a file here or click to browse" and a grayed-out button saying "Select a peer first". |
+| **Transfers (right panel)** | "No transfers yet" — this is where file transfer progress will appear later. |
+
+> **If "Engine Connected" shows as red "Disconnected":** Make sure the backend engine (Step 1) is still running in the other terminal.
+
+---
+
+### Step 4: Set Up a Second Device
+
+To transfer files, you need **another device on the same Wi-Fi / LAN** also running La-Vak.
+
+On the **second machine**, repeat Steps 1 and 2:
+
+```bash
+# Terminal 1 on Machine B
+cd server
+npm install
+node index.js
+
+# Terminal 2 on Machine B
+cd client
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173` on Machine B's browser.
+
+**Within ~3 seconds**, both dashboards will automatically discover each other:
+- Machine A's **Neighborhood** panel will show Machine B as a card (with its hostname, IP, and a platform icon like 🍎 for macOS).
+- Machine B's **Neighborhood** panel will show Machine A.
+- The server terminals will log: `[Discovery] + Peer joined: <hostname>`
+
+> **No manual configuration needed!** La-Vak uses UDP Multicast to find peers automatically.
+
+---
+
+### Step 5: Sending a File (From Machine A → Machine B)
+
+On **Machine A's dashboard**:
+
+1. **Select the target peer** — Click on Machine B's card in the **Neighborhood** panel. It will highlight with a purple border glow.
+
+2. **Choose a file** — Either:
+   - **Drag and drop** a file from your Finder/Explorer onto the dashed drop zone, OR
+   - **Click** the drop zone to open a file picker and select a file.
+
+   After selecting, you'll see a preview showing the file name and size (e.g., "📄 report.pdf — 2.1 MB").
+
+3. **Click "Send to \<Device Name\>"** — The purple button at the bottom will show the target device name. Click it.
+
+4. **Wait for acceptance** — The file is now waiting for Machine B to accept.
+
+---
+
+### Step 6: Receiving a File (On Machine B)
+
+On **Machine B's dashboard**:
+
+1. **An "Incoming File" popup appears** showing:
+   - File name
+   - File size
+   - Sender's IP address
+
+2. **Click "Accept"** to receive the file, or **"Reject"** to decline.
+
+3. **Watch the progress** — Both dashboards show a live progress bar in the **Transfers** panel:
+   - Status goes through: `Connecting…` → `Key exchange…` → `Transferring…` → `Verifying SHA-256…` → `Completed ✓`
+   - A percentage counter (e.g., `47%`) updates in real time.
+
+4. **File is saved** — The decrypted file appears in:
+   ```
+   ~/Downloads/la-vak/<filename>
+   ```
+
+5. **Integrity verified** — The server terminal shows:
+   ```
+   [Transport] ✓ File verified: report.pdf
+   ```
+   This means the SHA-256 hash of the received file matches the original — no corruption occurred.
+
+---
+
+### Step 7: Verify the Transfer Worked
+
+Check these indicators to confirm a successful transfer:
+
+| Indicator | Where | What to Look For |
+| :--- | :--- | :--- |
+| **Dashboard status** | Transfers panel (both machines) | Status shows "Completed ✓" with 100% |
+| **Server log** | Terminal running `node index.js` | `[Transport] ✓ File verified: <filename>` |
+| **Downloaded file** | `~/Downloads/la-vak/` on Machine B | File exists with correct size and content |
+| **SHA-256 hash** | Automatic | Hash verified by the engine (no manual action needed) |
+
+---
+
+### 📱 Using La-Vak from a Mobile Phone
+
+You don't need to install anything on your phone. Just use the browser:
+
+1. Make sure your **laptop** is running both the server and client (Steps 1-2).
+2. Find your laptop's IP address (shown in the server startup banner, e.g., `192.168.100.92`).
+3. On your phone (connected to the **same Wi-Fi**), open the browser and go to:
+   ```
+   http://192.168.100.92:5173
+   ```
+4. The La-Vak dashboard loads on your phone. You can send and receive files just like on a desktop.
+
+> **Note:** For mobile access, start the client with `npm run dev -- --host` to expose Vite to the network.
+
+---
+
+### 🔧 Troubleshooting
+
+| Problem | Solution |
+| :--- | :--- |
+| Dashboard shows **"Disconnected"** (red) | Make sure the server (`node index.js`) is running in another terminal. Check it's on port 3001. |
+| **No peers appear** in Neighborhood | Both devices must be on the same Wi-Fi/LAN. Some networks (e.g., university, corporate) block UDP multicast. Try a personal hotspot. |
+| **Send button is grayed out** | You need to both select a peer (click a card) AND choose a file first. |
+| **Transfer stuck at "Waiting for approval"** | The receiver needs to click **Accept** on the incoming file popup on their dashboard. |
+| **File not in Downloads** | Check `~/Downloads/la-vak/` (a subfolder is created automatically). |
+| **"Connection refused" on mobile** | Run the client with `npm run dev -- --host` and use the laptop's LAN IP, not `localhost`. |
+
+---
+
+## 🔌 API Reference (For Developers)
+
+### REST API Endpoints
 
 | Method | Endpoint | Description | Body / Params |
 | :--- | :--- | :--- | :--- |
@@ -115,7 +307,7 @@ The backend engine handles all low-level networking, security, and file streamin
 | `POST` | `/api/send` | Send a file to a peer | `multipart/form-data`: `file`, `peerIp`, `peerPort` |
 | `POST` | `/api/respond` | Accept/Reject an incoming transfer | `JSON`: `{ transferId, accepted }` |
 
-#### WebSocket Events (pushed to connected clients)
+### WebSocket Events (pushed to connected clients)
 
 | Event | Payload | When |
 | :--- | :--- | :--- |
@@ -125,7 +317,7 @@ The backend engine handles all low-level networking, security, and file streamin
 | `transfer-complete` | `Transfer` | File fully received & verified |
 | `transfer-error` | `Transfer` | Transfer failed or rejected |
 
-#### Key Server Modules
+### Key Server Modules
 
 | Module | File | Responsibility |
 | :--- | :--- | :--- |
@@ -134,32 +326,6 @@ The backend engine handles all low-level networking, security, and file streamin
 | **Transport** | `server/transport.js` | TLS-wrapped TCP file streaming with length-prefixed wire protocol |
 | **Orchestration** | `server/index.js` | Express API, WebSocket bridge, module coordination |
 
-### Client-Side (React Dashboard)
-
-The React dashboard communicates with the **local** backend engine via REST + WebSocket. No direct network access is needed from the browser.
-
-#### Dashboard Sections
-
-1. **Header** — Shows connection status (green = engine connected) and device info (hostname, local IP).
-2. **Neighborhood** — Displays all discovered peers on the LAN as clickable cards. Shows a scanning animation when no peers are found.
-3. **Send File** — Drag-and-drop zone (or click to browse). Select a peer from the Neighborhood, choose a file, and click **Send**.
-4. **Transfers** — Live list of all active and completed transfers with progress bars, status labels, and SHA-256 verification results.
-5. **Incoming Modal** — A popup appears when another peer wants to send you a file. Shows file name, size, and sender IP with **Accept** / **Reject** buttons.
-
-#### How to Send a File
-
-1. Start both the **server** and **client** on two machines connected to the same LAN.
-2. Wait for the other machine to appear in the **Neighborhood** panel.
-3. Click the peer card to select it (highlighted with purple border).
-4. Drag a file onto the **drop zone** or click to browse.
-5. Click the **Send** button.
-6. On the receiving machine, an **Incoming File** modal will appear — click **Accept**.
-7. The file is encrypted with AES-256-GCM, streamed over TLS, and saved to `~/Downloads/la-vak/`.
-8. SHA-256 hash is verified automatically after transfer completes.
-
-#### Mobile Access
-
-Connect your phone's browser to `http://<laptop-ip>:5173` while on the same Wi-Fi. The dashboard is fully responsive.
 
 ---
 
