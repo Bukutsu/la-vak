@@ -31,10 +31,17 @@ function App() {
       const isMobile = /Android|iPhone/i.test(navigator.userAgent);
       const hostname = isMobile ? 'Android Phone' : 'Web Browser';
       
-      socketService.socket.emit('peer:register', {
-        id: webId,
-        hostname: hostname
-      });
+      const register = () => {
+        socketService.socket.emit('peer:register', {
+          id: webId,
+          hostname: hostname
+        });
+      };
+
+      register();
+      // Send heartbeat every 10 seconds to keep alive
+      const interval = setInterval(register, 10000);
+      return () => clearInterval(interval);
     });
 
     socketService.socket.on('disconnect', () => {
@@ -90,61 +97,99 @@ function App() {
       {transfers.length > 0 && (
         <div style={{
           position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          zIndex: 1000,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 2000,
           display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-          maxWidth: '350px'
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '20px'
         }}>
-          {transfers.map(t => (
-            <div key={t.id} className="glass-panel" style={{
-              background: '#38bdf8',
-              color: 'white',
-              padding: '1rem',
-              borderRadius: '12px',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-              animation: 'slideIn 0.3s ease'
+          <div className="glass-panel" style={{
+            background: 'rgba(30, 41, 59, 0.95)',
+            border: '1px solid rgba(56, 189, 248, 0.3)',
+            color: 'white',
+            padding: '2.5rem',
+            borderRadius: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            width: '100%',
+            maxWidth: '450px',
+            textAlign: 'center',
+            animation: 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+          }}>
+            <div style={{ 
+              background: 'rgba(56, 189, 248, 0.1)', 
+              width: '80px', 
+              height: '80px', 
+              borderRadius: '20px', 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              margin: '0 auto 1.5rem'
             }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Incoming File</div>
-              <div style={{ fontSize: '0.85rem', opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {t.filename}
-              </div>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                <button 
-                  onClick={() => handleDownload(t.id, t.url, t.filename)}
-                  style={{
-                    background: 'white',
-                    color: '#0369a1',
-                    border: 'none',
-                    padding: '6px 15px',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    flex: 1
-                  }}
-                >
-                  Save File
-                </button>
-                <button 
-                  onClick={() => setTransfers(prev => prev.filter(item => item.id !== t.id))}
-                  style={{
-                    background: 'rgba(255,255,255,0.2)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Dismiss
-                </button>
+              <ShieldCheck size={40} color="#38bdf8" />
+            </div>
+            
+            <h2 style={{ marginBottom: '0.5rem', fontSize: '1.5rem' }}>Incoming Transfer</h2>
+            <p style={{ opacity: 0.7, marginBottom: '1.5rem' }}>A device in your neighborhood wants to send you a file.</p>
+            
+            <div style={{ 
+              background: 'rgba(0, 0, 0, 0.2)', 
+              padding: '1rem', 
+              borderRadius: '12px', 
+              marginBottom: '2rem',
+              border: '1px dashed rgba(255, 255, 255, 0.1)'
+            }}>
+              <div style={{ fontWeight: 'bold', fontSize: '1.1rem', wordBreak: 'break-all' }}>
+                {transfers[0].filename}
               </div>
             </div>
-          ))}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button 
+                onClick={() => handleDownload(transfers[0].id, transfers[0].url, transfers[0].filename)}
+                style={{
+                  background: '#38bdf8',
+                  color: '#0f172a',
+                  border: 'none',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s ease'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                Accept and Download
+              </button>
+              <button 
+                onClick={() => setTransfers(prev => prev.filter(item => item.id !== transfers[0].id))}
+                style={{
+                  background: 'transparent',
+                  color: 'rgba(255, 255, 255, 0.6)',
+                  border: 'none',
+                  padding: '10px',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Decline Request
+              </button>
+            </div>
+            
+            {transfers.length > 1 && (
+              <div style={{ marginTop: '1rem', fontSize: '0.8rem', opacity: 0.5 }}>
+                +{transfers.length - 1} more pending requests
+              </div>
+            )}
+          </div>
         </div>
       )}
       <header style={{ marginBottom: '3rem' }}>

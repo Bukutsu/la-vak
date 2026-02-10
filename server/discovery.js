@@ -108,7 +108,7 @@ class PeerDiscovery extends EventEmitter {
                     info: data,
                     remoteAddress: remoteAddr,
                     lastSeen: Date.now(),
-                    isSelf: false // Strictly false now
+                    isSelf: false
                 });
 
                 if (isNew) {
@@ -160,7 +160,7 @@ class PeerDiscovery extends EventEmitter {
         this.peers.set(id, {
             info: info,
             remoteAddress: remoteAddress,
-            lastSeen: Date.now(),
+            lastSeen: Date.now(), // Update every time called
             isSelf: false,
             isWeb: true // Flag to identify web-only peers
         });
