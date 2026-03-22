@@ -5,7 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const EventEmitter = require('events');
 
-const TRANSFER_PORT = 41235;
+const TRANSFER_PORT = process.env.TRANSFER_PORT || 41235;
 
 class TransferManager extends EventEmitter {
     constructor() {
@@ -23,12 +23,16 @@ class TransferManager extends EventEmitter {
             this._handleConnection(socket);
         });
 
-        this.server.listen(TRANSFER_PORT, () => {
-            console.log(`[Transfer] Listening on TCP ${TRANSFER_PORT}`);
+        this.server.on('error', (err) => {
+            if (err.code === 'EADDRINUSE') {
+                console.error(`[Transfer] Port ${TRANSFER_PORT} is already in use. Please stop the other instance first.`);
+            } else {
+                console.error(`[Transfer] Server error:`, err);
+            }
         });
 
-        this.server.on('error', (err) => {
-            console.error(`[Transfer] Server error:`, err);
+        this.server.listen(TRANSFER_PORT, () => {
+            console.log(`[Transfer] Listening on TCP ${TRANSFER_PORT}`);
         });
     }
 
