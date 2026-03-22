@@ -1,4 +1,4 @@
-import { Monitor, Wifi, Send } from 'lucide-react';
+import { Monitor, Wifi, Send, Shield, Globe } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { Peer } from '../types';
 import { api } from '../services/api';
@@ -9,12 +9,12 @@ interface PeerListProps {
 
 export default function PeerList({ peers }: PeerListProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [selectedPeer, setSelectedPeer] = useState<string | null>(null);
+    const [selectedPeer, setSelectedPeer] = useState<{ id: string, ip: string } | null>(null);
     const [sending, setSending] = useState(false);
 
-    const handlePeerClick = (peerIp: string) => {
+    const handlePeerClick = (peerId: string, peerIp: string) => {
         if (sending) return;
-        setSelectedPeer(peerIp);
+        setSelectedPeer({ id: peerId, ip: peerIp });
         fileInputRef.current?.click();
     };
 
@@ -24,8 +24,8 @@ export default function PeerList({ peers }: PeerListProps) {
 
         setSending(true);
         try {
-            console.log(`Sending ${file.name} to ${selectedPeer}...`);
-            await api.sendFile(selectedPeer, file);
+            console.log(`Sending ${file.name} to ${selectedPeer.id} (${selectedPeer.ip})...`);
+            await api.sendFile(selectedPeer.id, selectedPeer.ip, file);
             alert(`Successfully initiated transfer of ${file.name}!`);
         } catch (error: any) {
             console.error(error);
@@ -61,7 +61,7 @@ export default function PeerList({ peers }: PeerListProps) {
                     <div 
                         key={peer.id} 
                         className="card" 
-                        onClick={() => handlePeerClick(peer.remoteAddress)}
+                        onClick={() => handlePeerClick(peer.id, peer.remoteAddress)}
                         style={{ 
                             display: 'flex', 
                             alignItems: 'center', 
@@ -71,8 +71,8 @@ export default function PeerList({ peers }: PeerListProps) {
                             transition: 'all 0.2s ease'
                         }}
                     >
-                        <div style={{ background: 'rgba(56, 189, 248, 0.2)', padding: '12px', borderRadius: '12px' }}>
-                            <Monitor size={24} color="#38bdf8" />
+                        <div style={{ background: peer.isEngine ? 'rgba(14, 165, 233, 0.2)' : (peer.isWeb ? 'rgba(234, 179, 8, 0.2)' : 'rgba(56, 189, 248, 0.2)'), padding: '12px', borderRadius: '12px' }}>
+                            {peer.isEngine ? <Shield size={24} color="#0ea5e9" /> : (peer.isWeb ? <Globe size={24} color="#eab308" /> : <Monitor size={24} color="#38bdf8" />)}
                         </div>
                         <div style={{ textAlign: 'left', flex: 1 }}>
                             <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{peer.hostname}</div>

@@ -19,22 +19,31 @@ function App() {
 
     socketService.connect();
 
-    socketService.socket.on('connect', () => {
+    socketService.socket.on('connect', async () => {
       setConnected(true);
 
-      let webId = localStorage.getItem('lavak_web_id');
+      let webId = sessionStorage.getItem('lavak_web_id');
+      let friendlyName = sessionStorage.getItem('lavak_friendly_name');
+      
       if (!webId) {
         webId = 'web-' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('lavak_web_id', webId);
+        sessionStorage.setItem('lavak_web_id', webId);
       }
 
-      const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-      const hostname = isMobile ? 'Android Phone' : 'Web Browser';
+      if (!friendlyName) {
+        try {
+          const { name } = await api.generateName();
+          friendlyName = name;
+          sessionStorage.setItem('lavak_friendly_name', friendlyName || 'Anonymous');
+        } catch (e) {
+          friendlyName = 'Web Browser';
+        }
+      }
 
       const register = () => {
         socketService.socket.emit('peer:register', {
           id: webId,
-          hostname: hostname
+          hostname: friendlyName
         });
       };
 
@@ -49,7 +58,7 @@ function App() {
     });
 
     socketService.socket.on('peers:update', (updatedPeers: Peer[]) => {
-      const selfId = localStorage.getItem('lavak_web_id');
+      const selfId = sessionStorage.getItem('lavak_web_id');
       setPeers(updatedPeers.map(p => ({
         ...p,
         isSelf: p.id === selfId
@@ -218,7 +227,7 @@ function App() {
             Your Device
           </div>
           <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
-            {peers.find(p => p.isSelf)?.hostname}
+            {sessionStorage.getItem('lavak_friendly_name') || status?.hostname}
           </div>
           <div style={{ fontSize: '0.9rem', fontFamily: 'monospace', color: '#0ea5e9', background: '#f0f9ff', padding: '2px 8px', borderRadius: '6px' }}>
             {status?.serverIp || peers.find(p => p.isSelf)?.remoteAddress}

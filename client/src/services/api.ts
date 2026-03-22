@@ -13,10 +13,16 @@ export const api = {
         return response.json();
     },
 
-    async sendFile(peerIp: string, file: File) {
+    async generateName() {
+        const response = await fetch(`${BASE_URL}/generate-name`);
+        return response.json();
+    },
+
+    async sendFile(peerId: string, peerIp: string, file: File) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('peerIp', peerIp);
+        formData.append('peerId', peerId);
 
         const response = await fetch(`${BASE_URL}/send`, {
             method: 'POST',

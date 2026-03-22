@@ -10,7 +10,7 @@
 Developed as part of the **Data Encryption** curriculum (Course 02204352), La-Vak implements a hybrid cryptographic architecture to solve the "Local Discovery Problem" without sacrificing data integrity or confidentiality.
 
 ### Key Pillars
-- **Zero-Config Discovery:** Instant peer identification via UDP Multicast (mDNS-inspired).
+- **Zero-Config Discovery (Neighborhood Names):** Instant peer identification via UDP Multicast (mDNS-inspired) using friendly "Animal Names" for easy recognition.
 - **Privacy-by-Design:** End-to-End Encryption (E2EE) with no external metadata leakage.
 - **Cross-Platform Accessibility:** A "Reactive Web" approach that bridges Desktop performance with Mobile browser convenience.
 
@@ -53,6 +53,7 @@ la-vak/
 ├── server/           # Backend Engine (Discovery & Crypto Logic)
 │   ├── discovery.js  # [P1] Peer Discovery Protocol
 │   ├── security.js   # [P3] Cryptographic Implementations
+│   ├── names.js      # [P0] Animal Name Generator
 │   └── index.js      # [P4] Orchestration & API Layer
 └── doc/              # Academic Requirements & System Diagrams
 ```
@@ -71,10 +72,19 @@ cd server
 npm install
 node index.js
 ```
+*   The server will now display a friendly "Animal Name" (e.g., "Jolly Rabbit") and save its identity to `.identity.json` for persistence across restarts.
+*   If ports `3000` or `41235` are already in use, the server will now gracefully warn you instead of crashing.
 
 ### 2. Initialize Frontend
 ```bash
 cd client
 npm install
-npm run dev
+npm run dev -- --host
 ```
+*   The frontend is now accessible from other devices on your local network. Look for the "Network:" address in the console output (e.g., `http://10.40.149.211:5173/`).
+*   Each browser tab will generate its own unique "Animal Name" and will appear as a separate device in the Peer List.
+
+### 3. Accessing the Dashboard
+Open your web browser and navigate to `http://localhost:5173/` (for local access) or `http://YOUR_NETWORK_IP:5173/` (from other devices on your LAN).
+
+---

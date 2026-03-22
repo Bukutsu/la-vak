@@ -19,7 +19,7 @@ const io = new Server(server, {
     }
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Track active web sockets by peer ID
 const webSockets = new Map();
@@ -53,6 +53,8 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+const { generateName } = require('./names');
+
 // API Routes
 app.get('/api/status', (req, res) => {
     const interfaces = require('os').networkInterfaces();
@@ -71,8 +73,14 @@ app.get('/api/status', (req, res) => {
     res.json({
         status: 'online',
         publicKey: security.getPublicKey() ? 'Loaded' : 'Initializing...',
-        serverIp: serverIp
+        serverIp: serverIp,
+        peerId: discovery.peerId,
+        hostname: discovery.friendlyName
     });
+});
+
+app.get('/api/generate-name', (req, res) => {
+    res.json({ name: generateName() });
 });
 
 app.get('/api/peers', (req, res) => {
@@ -100,23 +108,30 @@ app.get('/api/download/:token', (req, res) => {
 });
 
 app.post('/api/send', upload.single('file'), async (req, res) => {
-    if (!req.file || !req.body.peerIp) {
-        console.error('[API] Missing file or peerIp', { hasFile: !!req.file, peerIp: req.body.peerIp });
-        return res.status(400).json({ error: 'Missing file or peerIp' });
+    if (!req.file || (!req.body.peerIp && !req.body.peerId)) {
+        console.error('[API] Missing file or target identification', { hasFile: !!req.file, peerIp: req.body.peerIp, peerId: req.body.peerId });
+        return res.status(400).json({ error: 'Missing file or target identification' });
     }
 
-    let { peerIp } = req.body;
+    let { peerIp, peerId } = req.body;
     const filePath = req.file.path;
     const filename = req.file.originalname;
 
-    console.log(`[API] Processing send request for ${filename} to ${peerIp}`);
+    console.log(`[API] Processing send request for ${filename} to ID:${peerId} IP:${peerIp}`);
 
-    // Check if the target is a Web Peer
-    const targetPeer = Array.from(discovery.peers.values()).find(p => p.remoteAddress === peerIp && p.isWeb);
+    // Check if the target is a Web Peer by ID first (most reliable)
+    let targetPeer = null;
+    if (peerId) {
+        targetPeer = discovery.peers.get(peerId);
+        if (targetPeer && !targetPeer.isWeb) {
+            // It's a discovered engine peer, use TCP
+            targetPeer = null; 
+        }
+    }
 
-    if (targetPeer) {
+    if (targetPeer && targetPeer.isWeb) {
         console.log(`[API] Target is Web Peer. Relaying via WebSocket...`);
-        const targetSocket = webSockets.get(targetPeer.info.id);
+        const targetSocket = webSockets.get(peerId);
 
         if (targetSocket) {
             // Generate a secure one-time token
@@ -177,12 +192,34 @@ app.post('/api/send', upload.single('file'), async (req, res) => {
 });
 
 function getFormattedPeers() {
-    return Array.from(discovery.peers.values()).map(p => ({
+    const interfaces = require('os').networkInterfaces();
+    let localIp = '127.0.0.1';
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                localIp = iface.address;
+                break;
+            }
+        }
+    }
+
+    const peers = Array.from(discovery.peers.values()).map(p => ({
         id: p.info.id,
-        hostname: p.info.hostname,
+        hostname: p.info.friendlyName || p.info.hostname,
         remoteAddress: p.remoteAddress,
-        isSelf: false
+        isSelf: false,
+        isWeb: p.isWeb
     }));
+
+    // Add our local engine as an available peer
+    peers.push({
+        id: discovery.peerId,
+        hostname: discovery.friendlyName,
+        remoteAddress: localIp,
+        isEngine: true
+    });
+
+    return peers;
 }
 
 // WebSocket Handling
@@ -242,6 +279,13 @@ async function start() {
     });
 
     Transfer.start();
+
+    server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.error(`[API] Port ${PORT} is already in use. Please stop the other instance first.`);
+            process.exit(1);
+        }
+    });
 
     server.listen(PORT, () => {
         console.log(`[API] Server running on http://localhost:${PORT}`);

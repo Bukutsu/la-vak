@@ -2,21 +2,54 @@ const dgram = require('dgram');
 const EventEmitter = require('events');
 const os = require('os');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { generateName } = require('./names');
 
 const MULTICAST_ADDR = '239.1.1.1';
-const PORT = 41234;
+const PORT = process.env.DISCOVERY_PORT || 41234;
 const HEARTBEAT_INTERVAL = 1000; // 1 second
+const IDENTITY_PATH = path.join(__dirname, '.identity.json');
 
 class PeerDiscovery extends EventEmitter {
     constructor() {
         super();
         this.socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
-        this.peerId = crypto.randomUUID();
+        
+        // Robust Persistent Identity
+        const identity = this._loadIdentity();
+        this.peerId = identity.id;
+        this.friendlyName = identity.name;
         this.hostname = os.hostname();
+        
         this.peers = new Map(); // id -> { info, lastSeen }
         this.interval = null;
 
         this._setupSocket();
+    }
+
+    _loadIdentity() {
+        try {
+            if (fs.existsSync(IDENTITY_PATH)) {
+                return JSON.parse(fs.readFileSync(IDENTITY_PATH, 'utf8'));
+            }
+        } catch (e) {
+            console.warn('[Discovery] Failed to load persistent identity:', e.message);
+        }
+
+        const newIdentity = {
+            id: crypto.randomUUID(),
+            name: generateName()
+        };
+
+        try {
+            fs.writeFileSync(IDENTITY_PATH, JSON.stringify(newIdentity), 'utf8');
+            console.log(`[Discovery] Created new persistent identity: ${newIdentity.name}`);
+        } catch (e) {
+            console.error('[Discovery] Failed to save identity:', e.message);
+        }
+
+        return newIdentity;
     }
 
     _setupSocket() {
@@ -68,6 +101,7 @@ class PeerDiscovery extends EventEmitter {
                             type: 'HELLO',
                             id: this.peerId,
                             hostname: this.hostname,
+                            friendlyName: this.friendlyName,
                             remoteAddress: iface.address, // Explicitly tell others our IP
                             timestamp: Date.now()
                         });
@@ -75,10 +109,11 @@ class PeerDiscovery extends EventEmitter {
                         try {
                             this.socket.setMulticastInterface(iface.address);
                             this.socket.send(message, PORT, MULTICAST_ADDR, (err) => {
-                                if (err) console.error('[Discovery] Failed to send heartbeat:', err);
+                                if (err) console.error(`[Discovery] [${name}] Failed to send heartbeat:`, err.message);
                             });
+                            // console.debug(`[Discovery] Sent heartbeat on ${iface.address} (${name})`);
                         } catch (e) {
-                            // Ignore interface errors
+                            console.error(`[Discovery] [${name}] Multicast Interface Error: ${e.message}`);
                         }
                     }
                 }
